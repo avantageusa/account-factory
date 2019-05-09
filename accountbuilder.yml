@@ -101,6 +101,8 @@ Parameters:
     Description: "Password for the IAM user in the created accout."
     Type: String
     NoEcho: True
+    MinLength: '8'
+    MaxLength: '128'
     AllowedPattern: ".+"
     ConstraintDescription: "Must provide a password for the username"
 
