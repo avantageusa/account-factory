@@ -115,24 +115,6 @@ Resources:
         Info:
           LoadTemplateFromURL : "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/vpc/sc-vpc-ra.json"
 
-  EMRProduct:
-    Type: "AWS::ServiceCatalog::CloudFormationProduct"
-    Properties:
-      AcceptLanguage: "en"
-      Description: "EMR product creates an Amazon Elastic MapReduce cluster in the VPC and Subnets selected by the end user. A remote access security group is also created to allow for a bastion host to connect to the instances used by EMR via SSH."
-      Distributor: "Amazon"
-      Name: "EMR Product"
-      Owner: "IT Services"
-      SupportEmail: "support@yourcompany.com"
-      SupportUrl: "https://www.amazon.com"
-      SupportDescription: "Support Description"
-      ProvisioningArtifactParameters:
-      -
-        Description: "June 2018"
-        Name: "June 2018"
-        Info: 
-          LoadTemplateFromURL: "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/emr/sc-emr-ra.json"
-
   RDSMySQLProduct:
     Type: "AWS::ServiceCatalog::CloudFormationProduct"
     Properties:
@@ -150,24 +132,6 @@ Resources:
         Name: "June 2018"
         Info: 
           LoadTemplateFromURL: "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/rds/sc-rds-mssql-ra.json"
-
-  RDSMariaDBProduct:
-    Type: "AWS::ServiceCatalog::CloudFormationProduct"
-    Properties:
-      AcceptLanguage: "en"
-      Description: "This product allows the user to launch a RDS Maria DB as either single instance databases or multi-availability zone databases."
-      Distributor: "Amazon"
-      Name: RDS MariaDB Product
-      Owner: "IT Services"
-      SupportEmail: "support@yourcompany.com"
-      SupportUrl: "https://www.amazon.com"
-      SupportDescription: "Support Description"
-      ProvisioningArtifactParameters:
-      -
-        Description: "June 2018"
-        Name: "June 2018"
-        Info: 
-          LoadTemplateFromURL: "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/rds/sc-rds-mariadb-ra.json"
 
   RDSPostGreSqlProduct:
     Type: "AWS::ServiceCatalog::CloudFormationProduct"
@@ -230,22 +194,10 @@ Resources:
        ProductId: !Ref VPCProduct
        PortfolioId: !Ref BaselinePortfolio
 
-  EMRAssociation:
-     Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
-     Properties:
-       ProductId: !Ref EMRProduct
-       PortfolioId: !Ref BaselinePortfolio
-
   RDSMySQLAssociation:
      Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
      Properties:
        ProductId: !Ref RDSMySQLProduct
-       PortfolioId: !Ref BaselinePortfolio
-
-  RDSMariaDBAssociation:
-     Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
-     Properties:
-       ProductId: !Ref RDSMariaDBProduct
        PortfolioId: !Ref BaselinePortfolio
 
   RDSPOSTGRESQLAssociation:
