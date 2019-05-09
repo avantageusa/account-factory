@@ -1,5 +1,5 @@
 # /*
-#  * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#  * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved. && 2018 widdix GmbH
 #  *
 #  * Permission is hereby granted, free of charge, to any person obtaining a copy of this
 #  * software and associated documentation files (the "Software"), to deal in the Software
@@ -16,11 +16,32 @@
 #  */
 
 
-
+## Password policy / lambda forked from: https://github.com/widdix/aws-cf-templates/blob/master/security/account-password-policy.yaml
+## Licensed under the Apache License, Version 2.0 (the "License")
 
 AWSTemplateFormatVersion: 2010-09-09
 Description: Baseline IAM resources for new account
 
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: 'Password Policy Parameters'
+      Parameters:
+      - AllowUsersToChangePassword
+      - HardExpiry
+      - MaxPasswordAge
+      - MinimumPasswordLength
+      - PasswordReusePrevention
+      - RequireLowercaseCharacters
+      - RequireNumbers
+      - RequireSymbols
+      - RequireUppercaseCharacters
+    - Label:
+        default: 'Operational Parameters'
+      Parameters:
+      - LogsRetentionInDays
+      
 Parameters:
   AdminUsername:
     Type: String
@@ -34,6 +55,74 @@ Parameters:
   NewRoleArn:
     Type: String
     Description: ARN of the NewRole
+  AllowUsersToChangePassword:
+    Description: 'You can permit all IAM users in your account to use the IAM console to change their own passwords.'
+    Type: String
+    Default: true
+    AllowedValues:
+    - true
+    - false
+  HardExpiry:
+    Description: 'You can prevent IAM users from choosing a new password after their current password has expired.'
+    Type: String
+    Default: false
+    AllowedValues:
+    - true
+    - false
+  MaxPasswordAge:
+    Description: 'You can set IAM user passwords to be valid for only the specified number of days. Choose 0 if you don not want passwords to expire.'
+    Type: Number
+    Default: 90
+    ConstraintDescription: 'Must be in the range [0-1095]'
+    MinValue: 0
+    MaxValue: 1095
+  MinimumPasswordLength:
+    Description: 'You can specify the minimum number of characters allowed in an IAM user password.'
+    Type: Number
+    Default: 12
+    ConstraintDescription: 'Must be in the range [6-128]'
+    MinValue: 6
+    MaxValue: 128
+  PasswordReusePrevention:
+    Description: 'You can prevent IAM users from reusing a specified number of previous passwords.'
+    Type: Number
+    Default: 6
+    ConstraintDescription: 'Must be in the range [0-24]'
+    MinValue: 0
+    MaxValue: 24
+  RequireLowercaseCharacters:
+    Description: 'You can require that IAM user passwords contain at least one lowercase character from the ISO basic Latin alphabet (a to z).'
+    Type: String
+    Default: true
+    AllowedValues:
+    - true
+    - false
+  RequireNumbers:
+    Description: 'You can require that IAM user passwords contain at least one numeric character (0 to 9).'
+    Type: String
+    Default: true
+    AllowedValues:
+    - true
+    - false
+  RequireSymbols:
+    Description: 'You can require that IAM user passwords contain at least one of the following nonalphanumeric characters: ! @ # $ % ^ & * ( ) _ + - = [ ] {} | '''
+    Type: String
+    Default: true
+    AllowedValues:
+    - true
+    - false
+  RequireUppercaseCharacters:
+    Description: 'You can require that IAM user passwords contain at least one uppercase character from the ISO basic Latin alphabet (A to Z).'
+    Type: String
+    Default: true
+    AllowedValues:
+    - true
+    - false
+  LogsRetentionInDays:
+    Description: 'Specifies the number of days you want to retain log events in the specified log group.'
+    Type: Number
+    Default: 14
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
 
 
 Resources:
@@ -61,168 +150,93 @@ Resources:
       Users:
         - !Ref Admin
 
-  EC2LinuxProduct:
-    Type: "AWS::ServiceCatalog::CloudFormationProduct"
+  LambdaRole:
+    Type: 'AWS::IAM::Role'
     Properties:
-      AcceptLanguage: "en"
-      Description: "This product builds one Amazon Linux EC2 instance and create a SSM patch baseline, maintenance window, and patch task to scan for and install operating system updates the EC2 instance."
-      Distributor: "Amazon"
-      Name: "Amazon Elastic Compute Cloud (EC2) Linux"
-      Owner: "IT Services"
-      SupportEmail: "support@yourcompany.com"
-      SupportUrl: "https://www.amazon.com"
-      SupportDescription: "Support Description"
-      ProvisioningArtifactParameters:
-      -
-        Description: "June 2018"
-        Name: "June 2018"
-        Info:
-          LoadTemplateFromURL : "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/ec2/sc-ec2-linux-ra.json"
-
-  EC2WindowsProduct: 
-    Type: "AWS::ServiceCatalog::CloudFormationProduct"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: 'lambda.amazonaws.com'
+          Action:
+          - 'sts:AssumeRole'
+      Path: '/'
+      ManagedPolicyArns: # TODO get rid of managed policy
+      - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+      - PolicyName: iam
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'iam:UpdateAccountPasswordPolicy'
+            - 'iam:DeleteAccountPasswordPolicy'
+            Resource: '*'
+  LambdaFunctionV2: # needs no monitoring because it is used as a custom resource
+    Type: 'AWS::Lambda::Function'
     Properties:
-      AcceptLanguage: "en"
-      Description: "This product builds one Amazon Windows EC2 instance and create a SSM patch baseline, maintenance window, and patch task to scan for and install operating system updates the EC2 instance."
-      Distributor: "Amazon"
-      Name: "Amazon Elastic Compute Cloud (EC2) Windows"
-      Owner: "IT Services"
-      SupportEmail: "support@yourcompany.com"
-      SupportUrl: "https://www.amazon.com"
-      SupportDescription: "Support Description"
-      ProvisioningArtifactParameters:
-      -
-        Description: "June 2018"
-        Name: "June 2018"
-        Info: 
-          LoadTemplateFromURL : "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/ec2/sc-ec2-windows-ra.json"
-
-  VPCProduct:
-    Type: "AWS::ServiceCatalog::CloudFormationProduct"
+      Code:
+        ZipFile: |
+          'use strict';
+          const AWS = require('aws-sdk');
+          const response = require('cfn-response');
+          const iam = new AWS.IAM({apiVersion: '2010-05-08'});
+          exports.handler = (event, context, cb) => {
+            console.log(`Invoke: ${JSON.stringify(event)}`);
+            const done = (err) => {
+              if (err) {
+                console.log(`Error: ${JSON.stringify(err)}`);
+                response.send(event, context, response.FAILED, {});
+              } else {
+                response.send(event, context, response.SUCCESS, {});
+              }
+            };
+            if (event.RequestType === 'Delete') {
+              iam.deleteAccountPasswordPolicy({}, done);
+            } else if (event.RequestType === 'Create' || event.RequestType === 'Update') {
+              let params = {
+                AllowUsersToChangePassword: event.ResourceProperties.AllowUsersToChangePassword === 'true',
+                HardExpiry: event.ResourceProperties.HardExpiry === 'true',
+                MinimumPasswordLength: parseInt(event.ResourceProperties.MinimumPasswordLength, 10),
+                RequireLowercaseCharacters: event.ResourceProperties.RequireLowercaseCharacters === 'true',
+                RequireNumbers: event.ResourceProperties.RequireNumbers === 'true',
+                RequireSymbols: event.ResourceProperties.RequireSymbols === 'true',
+                RequireUppercaseCharacters: event.ResourceProperties.RequireUppercaseCharacters === 'true',
+              };
+              if (parseInt(event.ResourceProperties.MaxPasswordAge, 10) > 0) {
+                params.MaxPasswordAge = parseInt(event.ResourceProperties.MaxPasswordAge, 10);
+              }
+              if (parseInt(event.ResourceProperties.PasswordReusePrevention, 10) > 0) {
+                params.PasswordReusePrevention = parseInt(event.ResourceProperties.PasswordReusePrevention, 10);
+              }
+              iam.updateAccountPasswordPolicy(params, done);
+            } else {
+              cb(new Error(`unsupported RequestType: ${event.RequestType}`));
+            }
+          };
+      Handler: 'index.handler'
+      MemorySize: 128
+      Role: !GetAtt 'LambdaRole.Arn'
+      Runtime: 'nodejs8.10'
+      Timeout: 60
+  LambdaLogGroup:
+    Type: 'AWS::Logs::LogGroup'
     Properties:
-      AcceptLanguage: "en"
-      Description: "This product builds one Amazon VPC with Public Subnets, Private Subnets, Route Tables, NAT Gateway and Internet Gateway"
-      Distributor: "Amazon"
-      Name: "Amazon VPC"
-      Owner: "IT Services"
-      SupportEmail: "support@yourcompany.com"
-      SupportUrl: "https://www.amazon.com"
-      SupportDescription: "Support Description"
-      ProvisioningArtifactParameters:
-      -
-        Description: "June 2018"
-        Name: "June 2018"
-        Info:
-          LoadTemplateFromURL : "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/vpc/sc-vpc-ra.json"
-
-  RDSMySQLProduct:
-    Type: "AWS::ServiceCatalog::CloudFormationProduct"
+      LogGroupName: !Sub '/aws/lambda/${LambdaFunctionV2}'
+      RetentionInDays: !Ref LogsRetentionInDays
+  PasswordPolicy:
+    Type: 'Custom::PasswordPolicy'
+    DependsOn: LambdaLogGroup
+    Version: '1.0'
     Properties:
-      AcceptLanguage: "en"
-      Description: "This product allows the user to launch a RDS MySQL DB as either single instance databases or multi-availability zone databases."
-      Distributor: "Amazon"
-      Name: "RDS MySQL Product"
-      Owner: "IT Services"
-      SupportEmail: "support@yourcompany.com"
-      SupportUrl: "https://www.amazon.com"
-      SupportDescription: "Support Description"
-      ProvisioningArtifactParameters:
-      -
-        Description: "June 2018"
-        Name: "June 2018"
-        Info: 
-          LoadTemplateFromURL: "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/rds/sc-rds-mssql-ra.json"
-
-  RDSPostGreSqlProduct:
-    Type: "AWS::ServiceCatalog::CloudFormationProduct"
-    Properties:
-      AcceptLanguage: "en"
-      Description: "This product allows the user to launch a RDS POSTGRE SQL as either single instance databases or multi-availability zone databases."
-      Distributor: "Amazon"
-      Name: "RDS POSTGRE SQL Product"
-      Owner: "IT Services"
-      SupportEmail: "support@yourcompany.com"
-      SupportUrl: "https://www.amazon.com"
-      SupportDescription: "Support Description"
-      ProvisioningArtifactParameters:
-      -
-        Description: "June 2018"
-        Name: "June 2018"
-        Info: 
-          LoadTemplateFromURL: "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/rds/sc-rds-postgresql-ra.json"
-
-  S3BucketProduct:
-    Type: "AWS::ServiceCatalog::CloudFormationProduct"
-    Properties:
-      AcceptLanguage: "en"
-      Description: "This product allows the user to create an S3 Bucket locking down the access to a specific CIDR."
-      Distributor: "Amazon"
-      Name: "S3 Bucket Product"
-      Owner: "IT Services"
-      SupportEmail: "support@yourcompany.com"
-      SupportUrl: "https://www.amazon.com"
-      SupportDescription: "Support Description"
-      ProvisioningArtifactParameters:
-      -
-        Description: "June 2018"
-        Name: "June 2018"
-        Info:
-          LoadTemplateFromURL: "https://raw.githubusercontent.com/aws-samples/aws-service-catalog-reference-architectures/master/s3/sc-s3-cidr-ra.json"
-
-  BaselinePortfolio:
-    Type: "AWS::ServiceCatalog::Portfolio"
-    Properties:
-      DisplayName: "FirstPortfolio"
-      AcceptLanguage: "en"
-      ProviderName: "Amazon"
-
-  LinuxAssociation:
-    Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
-    Properties:
-      ProductId: !Ref EC2LinuxProduct
-      PortfolioId: !Ref BaselinePortfolio
-
-  WindowsAssociation:
-    Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
-    Properties:
-      ProductId: !Ref EC2WindowsProduct
-      PortfolioId: !Ref BaselinePortfolio
-
-  VPCAssociation:
-     Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
-     Properties:
-       ProductId: !Ref VPCProduct
-       PortfolioId: !Ref BaselinePortfolio
-
-  RDSMySQLAssociation:
-     Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
-     Properties:
-       ProductId: !Ref RDSMySQLProduct
-       PortfolioId: !Ref BaselinePortfolio
-
-  RDSPOSTGRESQLAssociation:
-     Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
-     Properties:
-       ProductId: !Ref RDSPostGreSqlProduct
-       PortfolioId: !Ref BaselinePortfolio
-
-  S3BucketAssociation:
-     Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
-     Properties:
-       ProductId: !Ref S3BucketProduct
-       PortfolioId: !Ref BaselinePortfolio
-
-  PortfolioPrincipalAssociationforAdmin:
-    Type: "AWS::ServiceCatalog::PortfolioPrincipalAssociation"
-    Properties:
-      PrincipalARN: !GetAtt Admin.Arn
-      PortfolioId: !Ref BaselinePortfolio
-      PrincipalType: IAM
-
-
-  PortfolioPrincipalAssociationforRole:
-    Type: "AWS::ServiceCatalog::PortfolioPrincipalAssociation"
-    Properties:
-      PrincipalARN: !Ref NewRoleArn
-      PortfolioId: !Ref BaselinePortfolio
-      PrincipalType: IAM
+      HardExpiry: !Ref HardExpiry
+      AllowUsersToChangePassword: !Ref AllowUsersToChangePassword
+      MaxPasswordAge: !Ref MaxPasswordAge
+      MinimumPasswordLength: !Ref MinimumPasswordLength
+      PasswordReusePrevention: !Ref PasswordReusePrevention
+      RequireLowercaseCharacters: !Ref RequireLowercaseCharacters
+      RequireNumbers: !Ref RequireNumbers
+      RequireSymbols: !Ref RequireSymbols
+      RequireUppercaseCharacters: !Ref RequireUppercaseCharacters
+      ServiceToken: !GetAtt 'LambdaFunctionV2.Arn'
