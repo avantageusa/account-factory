@@ -28,7 +28,8 @@ Parameters:
   AdminPassword:
     Type: String
     NoEcho: true
-    MinLength: 1
+    MinLength: '8'
+    MaxLength: '128'
     Description: Password for the Admin user
   NewRoleArn:
     Type: String
